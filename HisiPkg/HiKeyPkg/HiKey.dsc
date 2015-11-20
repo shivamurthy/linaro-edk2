@@ -93,6 +93,7 @@
 
   # USB Requirements
   UefiUsbLib|MdePkg/Library/UefiUsbLib/UefiUsbLib.inf
+  DmaLib|ArmPkg/Library/ArmDmaLib/ArmDmaLib.inf
 
   UncachedMemoryAllocationLib|ArmPkg/Library/UncachedMemoryAllocationLib/UncachedMemoryAllocationLib.inf
 
@@ -143,9 +144,9 @@
 ################################################################################
 
 [PcdsFeatureFlag.common]
-  gEfiMdePkgTokenSpaceGuid.PcdComponentNameDisable|TRUE
+  gEfiMdePkgTokenSpaceGuid.PcdComponentNameDisable|FALSE
   gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnosticsDisable|TRUE
-  gEfiMdePkgTokenSpaceGuid.PcdComponentName2Disable|TRUE
+  gEfiMdePkgTokenSpaceGuid.PcdComponentName2Disable|FALSE
   gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnostics2Disable|TRUE
 
   #
@@ -414,14 +415,22 @@
   #
   # USB
   #
-  EmbeddedPkg/Drivers/DwUsbDxe/DwUsbDxe.inf
-  EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
+  #EmbeddedPkg/Drivers/DwUsbDxe/DwUsbDxe.inf
+  #EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
+
+  #
+  # USB Host Support
+  #
+  HisiPkg/HiKeyPkg/Drivers/PciEmulation/PciEmulation.inf
+  HisiPkg/HiKeyPkg/Drivers/DwUsbHostDxe/DwUsbHostDxe.inf
+  MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+  MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
 
   #
   # Fastboot
   #
-  EmbeddedPkg/Application/AndroidFastboot/AndroidFastbootApp.inf
-  HisiPkg/HiKeyPkg/Drivers/HiKeyFastbootDxe/HiKeyFastbootDxe.inf
+  #EmbeddedPkg/Application/AndroidFastboot/AndroidFastbootApp.inf
+  #HisiPkg/HiKeyPkg/Drivers/HiKeyFastbootDxe/HiKeyFastbootDxe.inf
 
   #
   # FAT filesystem + GPT/MBR partitioning

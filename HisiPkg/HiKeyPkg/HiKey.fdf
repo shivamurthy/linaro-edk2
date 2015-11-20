@@ -129,13 +129,21 @@ READ_LOCK_STATUS   = TRUE
   #
   # USB
   #
-  INF EmbeddedPkg/Drivers/DwUsbDxe/DwUsbDxe.inf
-  INF EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
+  #INF EmbeddedPkg/Drivers/DwUsbDxe/DwUsbDxe.inf
+  #INF EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
+
+  #
+  # USB Host Support
+  #
+  INF HisiPkg/HiKeyPkg/Drivers/PciEmulation/PciEmulation.inf
+  INF HisiPkg/HiKeyPkg/Drivers/DwUsbHostDxe/DwUsbHostDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
 
   #
   # FASTBOOT_PLATFORM_PROTOCOL
   #
-  INF HisiPkg/HiKeyPkg/Drivers/HiKeyFastbootDxe/HiKeyFastbootDxe.inf
+  #INF HisiPkg/HiKeyPkg/Drivers/HiKeyFastbootDxe/HiKeyFastbootDxe.inf
 
   #
   # FAT filesystem + GPT/MBR partitioning
