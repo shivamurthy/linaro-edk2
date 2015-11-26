@@ -97,6 +97,13 @@
 
   UncachedMemoryAllocationLib|ArmPkg/Library/UncachedMemoryAllocationLib/UncachedMemoryAllocationLib.inf
 
+  # Network Libraries
+  UefiScsiLib|MdePkg/Library/UefiScsiLib/UefiScsiLib.inf
+  NetLib|MdeModulePkg/Library/DxeNetLib/DxeNetLib.inf
+  DpcLib|MdeModulePkg/Library/DxeDpcLib/DxeDpcLib.inf
+  IpIoLib|MdeModulePkg/Library/DxeIpIoLib/DxeIpIoLib.inf
+  UdpIoLib|MdeModulePkg/Library/DxeUdpIoLib/DxeUdpIoLib.inf
+
 [LibraryClasses.AARCH64]
   ArmLib|ArmPkg/Library/ArmLib/AArch64/AArch64Lib.inf
 
@@ -415,8 +422,8 @@
   #
   # USB
   #
-  #EmbeddedPkg/Drivers/DwUsbDxe/DwUsbDxe.inf
-  #EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
+  EmbeddedPkg/Drivers/DwUsbDxe/DwUsbDxe.inf
+  EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
 
   #
   # USB Host Support
@@ -427,10 +434,29 @@
   MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
 
   #
+  # UEFI Network Stack
+  #
+  MdeModulePkg/Universal/Network/DpcDxe/DpcDxe.inf
+  MdeModulePkg/Universal/Network/MnpDxe/MnpDxe.inf
+  MdeModulePkg/Universal/Network/ArpDxe/ArpDxe.inf
+  MdeModulePkg/Universal/Network/Ip4Dxe/Ip4Dxe.inf
+  MdeModulePkg/Universal/Network/Ip4ConfigDxe/Ip4ConfigDxe.inf
+  MdeModulePkg/Universal/Network/Udp4Dxe/Udp4Dxe.inf
+  MdeModulePkg/Universal/Network/Tcp4Dxe/Tcp4Dxe.inf
+  MdeModulePkg/Universal/Network/Dhcp4Dxe/Dhcp4Dxe.inf
+  MdeModulePkg/Universal/Network/Mtftp4Dxe/Mtftp4Dxe.inf
+  MdeModulePkg/Universal/Network/UefiPxeBcDxe/UefiPxeBcDxe.inf
+
+  #
+  # AX88772 Ethernet Driver
+  #
+  OptionRomPkg/Bus/Usb/UsbNetworking/Ax88772/Ax88772.inf
+ 
+  #
   # Fastboot
   #
-  #EmbeddedPkg/Application/AndroidFastboot/AndroidFastbootApp.inf
-  #HisiPkg/HiKeyPkg/Drivers/HiKeyFastbootDxe/HiKeyFastbootDxe.inf
+  EmbeddedPkg/Application/AndroidFastboot/AndroidFastbootApp.inf
+  HisiPkg/HiKeyPkg/Drivers/HiKeyFastbootDxe/HiKeyFastbootDxe.inf
 
   #
   # FAT filesystem + GPT/MBR partitioning
