@@ -667,7 +667,7 @@ FillPkt2Queue (
   UINT8* pData;
   UINT32 offset;
   RX_TX_PACKET * pRxPacket;
-  UINTN LengthInBytes;
+//  UINTN LengthInBytes;
   EFI_STATUS Status;
   
   for ( offset = 0; offset < BufLength; ){
@@ -684,7 +684,7 @@ FillPkt2Queue (
     }
       
     pRxPacket = pNicDevice->pRxFree;
-    LengthInBytes = sizeof ( *pRxPacket ) - sizeof ( pRxPacket->pNext );
+//    LengthInBytes = sizeof ( *pRxPacket ) - sizeof ( pRxPacket->pNext );
     if ( NULL == pRxPacket ) {
       Status = gBS->AllocatePool ( EfiRuntimeServicesData,
                                    sizeof( RX_TX_PACKET ),

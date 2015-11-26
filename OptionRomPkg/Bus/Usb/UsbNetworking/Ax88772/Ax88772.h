@@ -127,8 +127,8 @@
 
 #define DEV_SIGNATURE     SIGNATURE_32 ('A','X','8','8')  ///<  Signature of data structures in memory
 
-#define VENDOR_ID         0x0b95  ///<  Vendor ID for Asix
-#define PRODUCT_ID        0x7720  ///<  Product ID for the AX88772 USB 10/100 Ethernet controller
+#define VENDOR_ID         0x05AC //0x0b95  ///<  Vendor ID for Asix
+#define PRODUCT_ID        0x1402 //0x7720  ///<  Product ID for the AX88772 USB 10/100 Ethernet controller
 
 #define RESET_MSEC        1000    ///<  Reset duration
 #define PHY_RESET_MSEC     500    ///<  PHY reset duration
