@@ -450,7 +450,7 @@
   #
   # AX88772 Ethernet Driver
   #
-  OptionRomPkg/Bus/Usb/UsbNetworking/Ax88772/Ax88772.inf
+  OptionRomPkg/Bus/Usb/UsbNetworking/Ax88772b/Ax88772b.inf
  
   #
   # Fastboot

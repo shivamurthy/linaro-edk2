@@ -909,12 +909,12 @@ DwCoreInit (
 	UINT32		AhbCfg = 0;
 	UINT32		UsbCfg = 0;
 
-        UsbCfg |= DWC2_GUSBCFG_FORCEHOSTMODE;
-        UsbCfg &= ~DWC2_GUSBCFG_FORCEDEVMODE;
+//        UsbCfg |= DWC2_GUSBCFG_FORCEHOSTMODE;
+//        UsbCfg &= ~DWC2_GUSBCFG_FORCEDEVMODE;
 
-        MmioWrite32 (DwHc->DwUsbBase + GUSBCFG, UsbCfg);
+//        MmioWrite32 (DwHc->DwUsbBase + GUSBCFG, UsbCfg);
 
-        MicroSecondDelay (200000);
+//        MicroSecondDelay (200000);
 
 	UsbCfg = MmioRead32 (DwHc->DwUsbBase + GUSBCFG);
 

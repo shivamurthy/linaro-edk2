@@ -157,7 +157,7 @@ READ_LOCK_STATUS   = TRUE
   #
   # AX88772 Ethernet Driver
   #
-  INF OptionRomPkg/Bus/Usb/UsbNetworking/Ax88772/Ax88772.inf
+  INF OptionRomPkg/Bus/Usb/UsbNetworking/Ax88772b/Ax88772b.inf
 
   #
   # FASTBOOT_PLATFORM_PROTOCOL

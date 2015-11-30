@@ -625,6 +625,7 @@ Ax88772Reset (
                                   
   if (EFI_ERROR(Status)) goto err;  
 
+/*
   SetupMsg.RequestType = USB_REQ_TYPE_VENDOR
                         | USB_TARGET_DEVICE; 
   SetupMsg.Request = CMD_RXQTC;
@@ -634,6 +635,7 @@ Ax88772Reset (
   Status = Ax88772UsbCommand ( pNicDevice,
                                   &SetupMsg,
                                   NULL ); 
+*/
 err:
   return Status;
 }
