@@ -673,6 +673,8 @@ DwUsbStart (
   ASSERT (RxCallback != NULL);
   ASSERT (TxCallback != NULL);
 
+  phy_init();
+
   usb_init();
 
   mDeviceDescriptor = DeviceDescriptor;
@@ -731,7 +733,6 @@ DwUsbEntryPoint (
 {
   EFI_HANDLE  Handle;
 
-  phy_init();
   Handle = NULL;
   return gBS->InstallProtocolInterface (
 		  &Handle,
