@@ -408,6 +408,8 @@ typedef struct {
   RX_PKT * pFirstFill;
   UINTN   PktCntInQueue;
   UINT8 * pBulkInBuff;
+
+  INT32 Flags;
  
 } NIC_DEVICE;
 

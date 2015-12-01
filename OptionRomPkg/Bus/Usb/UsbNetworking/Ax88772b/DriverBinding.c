@@ -124,6 +124,8 @@ DriverStart (
 	UINTN							LengthInBytes;
 	EFI_DEVICE_PATH_PROTOCOL        *ParentDevicePath = NULL;
 	MAC_ADDR_DEVICE_PATH            MacDeviceNode;
+	EFI_USB_DEVICE_DESCRIPTOR	Device;
+	UINT32 i;
 
   //
 	//  Allocate the device structure
@@ -177,6 +179,43 @@ DriverStart (
 		  gBS->FreePool ( pNicDevice );
 		  goto EXIT;
   }
+
+    Status = pNicDevice->pUsbIo->UsbGetDeviceDescriptor ( pNicDevice->pUsbIo, &Device );
+    if (EFI_ERROR ( Status )) {
+                    gBS->CloseProtocol (
+                                        Controller,
+                                        &gEfiUsbIoProtocolGuid,
+                                        pThis->DriverBindingHandle,
+                                        Controller
+                                        );
+                  gBS->FreePool ( pNicDevice );
+		  goto EXIT;
+    }
+    else {
+      //
+      //  Validate the adapter
+      //
+      for (i = 0; ASIX_DONGLES[i].VendorId != 0; i++) {
+           if (ASIX_DONGLES[i].VendorId == Device.IdVendor &&
+               ASIX_DONGLES[i].ProductId == Device.IdProduct) {
+                     break;
+           }
+       }
+
+       if (ASIX_DONGLES[i].VendorId == 0) {
+                    gBS->CloseProtocol (
+                                        Controller,
+                                        &gEfiUsbIoProtocolGuid,
+                                        pThis->DriverBindingHandle,
+                                        Controller
+                                        );
+                  gBS->FreePool ( pNicDevice );
+		  goto EXIT;
+	}
+
+	pNicDevice->Flags = ASIX_DONGLES[i].Flags;
+    }
+
 
 	//
   // Set Device Path
