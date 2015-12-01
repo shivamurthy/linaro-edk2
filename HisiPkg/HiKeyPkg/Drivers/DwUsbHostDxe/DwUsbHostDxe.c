@@ -16,18 +16,69 @@
 #include "DwUsbHostDxe.h"
 #include "DwcHw.h"
 
-EFI_DRIVER_BINDING_PROTOCOL
-gDwUsbHostDriverBinding = {
-  DwUsbHostDriverBindingSupported,
-  DwUsbHostDriverBindingStart,
-  DwUsbHostDriverBindingStop,
-  0x30,
-  NULL,
-  NULL
+EFI_USB_PCIIO_DEVICE_PATH DwHcDevicePath =
+{
+  {
+    { ACPI_DEVICE_PATH, ACPI_DP, { sizeof (ACPI_HID_DEVICE_PATH), 0 } },
+    EISA_PNP_ID(0x0A03),  // HID
+    0                     // UID
+  },
+  {
+    { HARDWARE_DEVICE_PATH, HW_PCI_DP, { sizeof (PCI_DEVICE_PATH), 0 } },
+    0,
+    0
+  },
+  { END_DEVICE_PATH_TYPE, END_ENTIRE_DEVICE_PATH_SUBTYPE, { sizeof (EFI_DEVICE_PATH_PROTOCOL), 0} }
 };
 
 VOID DwHcInit (IN DWUSB_OTGHC_DEV *DwHc);
 VOID DwCoreInit (IN DWUSB_OTGHC_DEV *DwHc);
+
+VOID
+ConfigureUsbPhy (
+  VOID
+  )
+{
+        UINT32 Data;
+
+        /*Enable USB clock*/
+        Data = MmioRead32 (0xF7030000 + 0x200);
+        Data |= 0x10;
+        MmioWrite32 (0xF7030000 + 0x200, 0x10);
+
+        do {
+                Data = MmioRead32 (0xF7030000 + 0x208);
+        } while ((Data & 0x10) == 0);
+
+        /*Take USB IPs out of reset*/
+        MmioWrite32 (0xF7030000 + 0x304, 0xF0);
+
+        do {
+                Data = MmioRead32 (0xF7030000 + 0x308);
+                Data &= 0xF0;
+        } while (Data);
+
+        /*CTRL5*/
+        Data = MmioRead32 (0xF7030000 + 0x010);
+        Data &= ~0x20;
+        Data |= 0x318;
+        MmioWrite32 (0xF7030000 + 0x010, Data);
+
+        /*CTRL4*/
+        /*Configure USB PHY*/
+        Data = MmioRead32 (0xF7030000 + 0x00C);
+
+        /*make PHY out of low power mode*/
+        Data &= ~0x40;
+        Data &= ~0x100;
+        Data |= 0xC00;
+	Data &= ~0x200000;
+        MmioWrite32 (0xF7030000 + 0x00C, Data);
+
+        MmioWrite32 (0xF7030000 + 0x018, 0x70533483); //EYE_PATTERN
+
+        MicroSecondDelay (5000);
+}
 
 UINT32
 Wait4Bit (
@@ -75,7 +126,7 @@ Wait4Chhltd (
 	MicroSecondDelay (100);
 	Hcint = MmioRead32 (DwHc->DwUsbBase + HCINT(DWC2_HC_CHANNEL));
 	if (Hcint & (DWC2_HCINT_NAK | DWC2_HCINT_FRMOVRUN)) {
-		DEBUG ((EFI_D_ERROR, "Wait4Chhltd: ERROR\n"));
+		DEBUG ((EFI_D_INFO, "Wait4Chhltd: ERROR\n"));
 		return 1;
 	}
 
@@ -257,12 +308,24 @@ DwHcReset (
   IN UINT16               Attributes
   )
 {
-//	DWUSB_OTGHC_DEV		*DwHc;
+	DWUSB_OTGHC_DEV	*DwHc;
 
-	DEBUG ((EFI_D_ERROR, "Reset:0x%x\n",Attributes));
+	DwHc = DWHC_FROM_THIS (This);
 
-//	DwHc = DWHC_FROM_THIS (This);
-//	DwCoreReset (DwHc);
+	ConfigureUsbPhy ();
+        DwCoreInit(DwHc);
+        DwHcInit(DwHc);
+
+        MmioAndThenOr32 (DwHc->DwUsbBase + HPRT0,
+                                ~(DWC2_HPRT0_PRTENA | DWC2_HPRT0_PRTCONNDET |
+                                  DWC2_HPRT0_PRTENCHNG | DWC2_HPRT0_PRTOVRCURRCHNG),
+                                  DWC2_HPRT0_PRTRST);
+
+        MicroSecondDelay (50000);
+
+        MmioAnd32 (DwHc->DwUsbBase + HPRT0, ~(DWC2_HPRT0_PRTENA | DWC2_HPRT0_PRTCONNDET |
+                                                DWC2_HPRT0_PRTENCHNG | DWC2_HPRT0_PRTOVRCURRCHNG |
+                                                DWC2_HPRT0_PRTRST));
 
 	return EFI_SUCCESS;
 }
@@ -274,7 +337,12 @@ DwHcGetState (
   OUT  EFI_USB_HC_STATE      *State
   )
 {
-	DEBUG ((EFI_D_ERROR, "Get State\n"));
+	DWUSB_OTGHC_DEV	*DwHc;
+
+	DwHc = DWHC_FROM_THIS (This);
+
+	*State = DwHc->DwHcState;
+
 	return EFI_SUCCESS;
 }
 
@@ -285,9 +353,11 @@ DwHcSetState (
   IN EFI_USB_HC_STATE     State
   )
 {
-	DEBUG ((EFI_D_ERROR, "Set State\n"));
+	DWUSB_OTGHC_DEV *DwHc;
 
-	DEBUG ((EFI_D_ERROR, "SetState: %d\n", State));
+	DwHc = DWHC_FROM_THIS (This);
+
+	DwHc->DwHcState = State;
 
 	return EFI_SUCCESS;
 }
@@ -366,7 +436,6 @@ DwHcSetRootHubPortFeature (
 {
 	DWUSB_OTGHC_DEV		*DwHc;
 	UINT32			Hprt0;
-	UINT32			PcgCtl;
 	EFI_STATUS		Status = EFI_SUCCESS;
 
         if (PortNumber > DWC2_HC_CHANNEL) {
@@ -385,11 +454,6 @@ DwHcSetRootHubPortFeature (
 					DWC2_HPRT0_PRTENCHNG | DWC2_HPRT0_PRTOVRCURRCHNG);
 			Hprt0 |= DWC2_HPRT0_PRTSUSP;
 			MmioWrite32 (DwHc->DwUsbBase + HPRT0, Hprt0);
-
-			PcgCtl = MmioRead32 (DwHc->DwUsbBase + PCGCCTL);
-			PcgCtl |= DWC2_PCGCCTL_STOPPCLK;
-			MmioWrite32 (DwHc->DwUsbBase + PCGCCTL, PcgCtl);
-			MicroSecondDelay (10);
 			break;
 		case EfiUsbPortReset:
                         MmioAndThenOr32 (DwHc->DwUsbBase + HPRT0,
@@ -650,17 +714,12 @@ DwHcBulkTransfer (
 	Status			= EFI_DEVICE_ERROR;
 	TransferDirection	= (EndPointAddress >> 7) & 0x01;
 	EpAddress		= EndPointAddress & 0x0F;
-	Pid			= BulkDataToggle[DeviceAddress][EpAddress];
+	Pid			= (*DataToggle << 1);
 
 	Status = DwHcTransfer (DwHc, DeviceAddress, MaximumPacketLength, &Pid, TransferDirection, Data[0], DataLength,
 				EpAddress, DWC2_HCCHAR_EPTYPE_BULK, TransferResult, 1);
 
-	BulkDataToggle[DeviceAddress][EpAddress] = Pid;
-
-	if (Pid == 2)
-		*DataToggle = (Pid >> 1);
-	else
-		*DataToggle = Pid;
+	*DataToggle = (Pid >> 1);
 
 	return Status;
 }
@@ -720,11 +779,13 @@ DwHcAsyncInterruptTransfer (
 	TransferResult		= EFI_USB_NOERROR;
 	EpAddress		= EndPointAddress & 0x0F;
 	TransferDirection	= (EndPointAddress >> 7) & 0x01;
-	Pid			= BulkDataToggle[DeviceAddress][EpAddress];
+	Pid			= (*DataToggle << 1);
 	
 
 	Status = DwHcTransfer (DwHc, DeviceAddress, MaximumPacketLength, &Pid, TransferDirection, Data, &DataLength, 
 				EpAddress, DWC2_HCCHAR_EPTYPE_INTR, &TransferResult, 1);
+
+	*DataToggle = (Pid >> 1);
 
 	if (CallBackFunction != NULL)
 		CallBackFunction (Data, DataLength, Context, TransferResult);
@@ -909,13 +970,6 @@ DwCoreInit (
 	UINT32		AhbCfg = 0;
 	UINT32		UsbCfg = 0;
 
-//        UsbCfg |= DWC2_GUSBCFG_FORCEHOSTMODE;
-//        UsbCfg &= ~DWC2_GUSBCFG_FORCEDEVMODE;
-
-//        MmioWrite32 (DwHc->DwUsbBase + GUSBCFG, UsbCfg);
-
-//        MicroSecondDelay (200000);
-
 	UsbCfg = MmioRead32 (DwHc->DwUsbBase + GUSBCFG);
 
 	UsbCfg |= DWC2_GUSBCFG_ULPI_EXT_VBUS_DRV;
@@ -947,14 +1001,11 @@ DwCoreInit (
 
 DWUSB_OTGHC_DEV *
 CreateDwUsbHc (
-  IN EFI_PCI_IO_PROTOCOL       *PciIo,
-  IN EFI_DEVICE_PATH_PROTOCOL  *DevicePath,
-  IN UINT64                    OriginalPciAttributes
+  VOID
   )
 {
         DWUSB_OTGHC_DEV	*DwHc;
 	UINT32		Pages;
-	PCI_TYPE00	Pci;
 
         DwHc = AllocateZeroPool (sizeof(DWUSB_OTGHC_DEV));
 
@@ -978,10 +1029,9 @@ CreateDwUsbHc (
         DwHc->DwUsbOtgHc.ClearRootHubPortFeature        = DwHcClearRootHubPortFeature;
         DwHc->DwUsbOtgHc.MajorRevision                  = 0x02;
         DwHc->DwUsbOtgHc.MinorRevision                  = 0x00;
+	DwHc->DwUsbBase					= FixedPcdGet32 (PcdDwUsbBaseAddress);
 
-	DwHc->PciIo					= PciIo;
-        DwHc->DevicePath                                = DevicePath;
-	DwHc->OriginalPciAttributes			= OriginalPciAttributes;
+	CopyMem (&DwHc->DevicePath, &DwHcDevicePath, sizeof(DwHcDevicePath));
 
 	Pages = EFI_SIZE_TO_PAGES (DWC2_STATUS_BUF_SIZE);
 	DwHc->StatusBuffer = UncachedAllocatePages (Pages);
@@ -997,16 +1047,6 @@ CreateDwUsbHc (
                 return NULL;
         }
 
-        PciIo->Pci.Read (
-        	PciIo,
-                EfiPciIoWidthUint8,
-                0,
-                sizeof (PCI_TYPE00),
-                &Pci
-                );
-
-	DwHc->DwUsbBase = Pci.Device.Bar[0];
-
         return DwHc;
 }
 
@@ -1017,340 +1057,18 @@ DwUsbHcExitBootService (
   VOID		*Context
   )
 {
-	//DWUSB_OTGHC_DEV		*DwHc;
-
-	//DwHc = (DWUSB_OTGHC_DEV *) Context;
-
-	//Reset the controller
-}
-
-/**
-Driver Binding Protocol APIs
-**/
-
-EFI_STATUS
-EFIAPI
-DwUsbHostDriverBindingSupported (
-  IN EFI_DRIVER_BINDING_PROTOCOL *This,
-  IN EFI_HANDLE                  Controller,
-  IN EFI_DEVICE_PATH_PROTOCOL    *RemainingDevicePath
-  )
-{
-	EFI_STATUS		Status;
-	EFI_PCI_IO_PROTOCOL	*PciIo;
-	UINT32			Snpsid;
-	PCI_TYPE00		Pci;
-
-	Status = gBS->OpenProtocol (
-			Controller,
-			&gEfiPciIoProtocolGuid,
-			(VOID **) &PciIo,
-			This->DriverBindingHandle,
-			Controller,
-			EFI_OPEN_PROTOCOL_BY_DRIVER
-			);
-
-	if (EFI_ERROR (Status)) {
-		return EFI_UNSUPPORTED;
-	}
-
-	Status = PciIo->Pci.Read (
-			PciIo,
-			EfiPciIoWidthUint8,
-			0,
-			sizeof (PCI_TYPE00),
-			&Pci
-			);
-
-	if (EFI_ERROR (Status)) {
-		Status = EFI_UNSUPPORTED;
-		goto End;
-	}
-
-	//check vendor id device id class
-
-	if (Pci.Device.Bar[0] == 0xF72C0000) {
-		Snpsid = MmioRead32 (Pci.Device.Bar[0] + GSNPSID);
-	}
-
-	if ((Snpsid & DWC2_SNPSID_DEVID_MASK) != DWC2_SNPSID_DEVID_VER_3xx) {
-		DEBUG ((EFI_D_ERROR, "DwUsbHostDriverBindingSupported: Not DWC2 OTG Host Controller\n"));
-		Status = EFI_UNSUPPORTED;
-	}
-
-End:
-	gBS->CloseProtocol (
-		Controller,
-		&gEfiPciIoProtocolGuid,
-		This->DriverBindingHandle,
-		Controller
-		);
-
-	return Status;
-}
-
-EFI_STATUS
-EFIAPI
-DwUsbHostDriverBindingStart (
-  IN EFI_DRIVER_BINDING_PROTOCOL *This,
-  IN EFI_HANDLE                  Controller,
-  IN EFI_DEVICE_PATH_PROTOCOL    *RemainingDevicePath
-  )
-{
-	EFI_STATUS			Status;
-	DWUSB_OTGHC_DEV			*DwHc;
-	EFI_PCI_IO_PROTOCOL		*PciIo;
-	EFI_DEVICE_PATH_PROTOCOL	*DwHcDevPath;
-	UINT64				Supports;
-	UINT64				OriginalPciAttributes;
-	BOOLEAN				PciAttributesSaved;
-	UINT32				i, j;
-
-	Status = gBS->OpenProtocol (
-			Controller,
-			&gEfiPciIoProtocolGuid,
-			(VOID **) &PciIo,
-			This->DriverBindingHandle,
-			Controller,
-			EFI_OPEN_PROTOCOL_BY_DRIVER
-			);
-
-	if (EFI_ERROR (Status)) {
-		return Status;
-	}
-
-	DwHcDevPath = NULL;
-	Status = gBS->OpenProtocol (
-			Controller,
-			&gEfiDevicePathProtocolGuid,
-			(VOID **) &DwHcDevPath,
-			This->DriverBindingHandle,
-			Controller,
-			EFI_OPEN_PROTOCOL_GET_PROTOCOL
-			);
-
-	if (EFI_ERROR (Status)) {
-		goto CLOSE_PCIIO_PROTOCOL;
-	}
-
-	PciAttributesSaved = FALSE;
-
-	Status = PciIo->Attributes (
-			PciIo,
-			EfiPciIoAttributeOperationGet,
-			0,
-			&OriginalPciAttributes
-			);
-
-	if (EFI_ERROR (Status)) {
-		goto CLOSE_DEVPATH_PROTOCOL;
-	}
-
-	PciAttributesSaved = TRUE;
-
-	Status = PciIo->Attributes (
-			PciIo,
-			EfiPciIoAttributeOperationSupported,
-			0,
-			&Supports
-			);
-
-	if (EFI_ERROR(Status)) {
-		goto CLOSE_DEVPATH_PROTOCOL;
-	}
-
-	Supports &= (UINT64)EFI_PCI_DEVICE_ENABLE;
-	Status = PciIo->Attributes (
-			PciIo,
-			EfiPciIoAttributeOperationEnable,
-			Supports,
-			NULL
-			);
-
-	if (EFI_ERROR(Status)) {
-		goto RESTORE_PCI_ATTR;
-	}
-
-	DwHc = CreateDwUsbHc (PciIo, DwHcDevPath, OriginalPciAttributes);
-
-	if (DwHc == NULL) {
-		Status = EFI_OUT_OF_RESOURCES;
-		goto RESTORE_PCI_ATTR;
-	}
-
-	Status = gBS->InstallProtocolInterface (
-			&Controller,
-			&gEfiUsb2HcProtocolGuid,
-			EFI_NATIVE_INTERFACE,
-			&DwHc->DwUsbOtgHc
-			);
-
-	if (EFI_ERROR (Status)) {
-		goto FREE_DWHC;
-	}
-
-	DwCoreInit(DwHc);
-	DwHcInit(DwHc);
-
-	MmioAndThenOr32 (DwHc->DwUsbBase + HPRT0, 
-				~(DWC2_HPRT0_PRTENA | DWC2_HPRT0_PRTCONNDET |
-				  DWC2_HPRT0_PRTENCHNG | DWC2_HPRT0_PRTOVRCURRCHNG),
-				  DWC2_HPRT0_PRTRST);
-
-	MicroSecondDelay (50000);
-
-	MmioAnd32 (DwHc->DwUsbBase + HPRT0, ~(DWC2_HPRT0_PRTENA | DWC2_HPRT0_PRTCONNDET |
-						DWC2_HPRT0_PRTENCHNG | DWC2_HPRT0_PRTOVRCURRCHNG |
-						DWC2_HPRT0_PRTRST));
-
-	for (i=0; i<MAX_DEVICE; i++) {
-		for (j=0; j<MAX_ENDPOINT; j++) {
-			ControlDataToggle[i][j] = DWC2_HC_PID_DATA1;
-			BulkDataToggle[i][j]    = DWC2_HC_PID_DATA0;
-		}
-	}
-
-	Status = gBS->CreateEventEx (
-			EVT_NOTIFY_SIGNAL,
-			TPL_NOTIFY,
-			DwUsbHcExitBootService,
-			DwHc,
-			&gEfiEventExitBootServicesGuid,
-			&DwHc->ExitBootServiceEvent
-			);
-
-	if (EFI_ERROR (Status)) {
-		goto UNINSTALL_USB2HC_PROTOCOL;
-	}
-
-	AddUnicodeString2 (
-		"eng",
-		gDwUsbHostComponentName.SupportedLanguages,
-		&DwHc->ControllerNameTable,
-		L"DW OTG Host Controller (USB 2.0)",
-		TRUE
-		);
-
-	AddUnicodeString2 (
-		"en",
-		gDwUsbHostComponentName2.SupportedLanguages,
-		&DwHc->ControllerNameTable,
-		L"DW OTG Host Controller (USB 2.0)",
-		FALSE
-		);
-
-	return EFI_SUCCESS;
-
-UNINSTALL_USB2HC_PROTOCOL:
-	MmioAndThenOr32 (DwHc->DwUsbBase + HPRT0, ~(DWC2_HPRT0_PRTENA |
-				DWC2_HPRT0_PRTCONNDET | DWC2_HPRT0_PRTENCHNG |
-				DWC2_HPRT0_PRTOVRCURRCHNG),
-				DWC2_HPRT0_PRTRST);
-
-	gBS->UninstallProtocolInterface (
-		Controller,
-		&gEfiUsb2HcProtocolGuid,
-		&DwHc->DwUsbOtgHc
-		);
-FREE_DWHC:
-	gBS->FreePool (DwHc);
-RESTORE_PCI_ATTR:
-	if (PciAttributesSaved) {
-		PciIo->Attributes (
-			PciIo,
-			EfiPciIoAttributeOperationSet,
-			OriginalPciAttributes,
-			NULL
-			);
-	}
-CLOSE_DEVPATH_PROTOCOL:
-	gBS->CloseProtocol (
-		Controller,
-		&gEfiDevicePathProtocolGuid,
-		This->DriverBindingHandle,
-		Controller
-		);
-CLOSE_PCIIO_PROTOCOL:
-	gBS->CloseProtocol (
-		Controller,
-		&gEfiPciIoProtocolGuid,
-		This->DriverBindingHandle,
-		Controller
-		);
-
-	return Status;
-}
-
-EFI_STATUS
-EFIAPI
-DwUsbHostDriverBindingStop (
-  IN EFI_DRIVER_BINDING_PROTOCOL *This,
-  IN EFI_HANDLE                  Controller,
-  IN UINTN                       NumberOfChildren,
-  IN EFI_HANDLE                  *ChildHandleBuffer
-  )
-{
-	EFI_STATUS		Status;
-	EFI_PCI_IO_PROTOCOL	*PciIo;
-	EFI_USB2_HC_PROTOCOL	*DwUsbHc;
 	DWUSB_OTGHC_DEV		*DwHc;
 
-	Status = gBS->OpenProtocol (
-			Controller,
-			&gEfiUsb2HcProtocolGuid,
-			(VOID **) &DwUsbHc,
-			This->DriverBindingHandle,
-			Controller,
-			EFI_OPEN_PROTOCOL_GET_PROTOCOL
-			);
+	DwHc = (DWUSB_OTGHC_DEV *) Context;
 
-	if (EFI_ERROR (Status)) {
-		return Status;
-	}
+        MmioAndThenOr32 (DwHc->DwUsbBase + HPRT0,
+                                ~(DWC2_HPRT0_PRTENA | DWC2_HPRT0_PRTCONNDET |
+                                  DWC2_HPRT0_PRTENCHNG | DWC2_HPRT0_PRTOVRCURRCHNG),
+                                  DWC2_HPRT0_PRTRST);
 
-	DwHc  = DWHC_FROM_THIS(DwUsbHc);
-	PciIo = DwHc->PciIo;
+        MicroSecondDelay (50000);
 
-	Status = gBS->UninstallProtocolInterface (
-			Controller,
-			&gEfiUsb2HcProtocolGuid,
-			DwHc
-			);
-
-	if (EFI_ERROR (Status)) {
-		return Status;
-	}
-
-        MmioAndThenOr32 (DwHc->DwUsbBase + HPRT0, ~(DWC2_HPRT0_PRTENA |
-                                DWC2_HPRT0_PRTCONNDET | DWC2_HPRT0_PRTENCHNG |
-                                DWC2_HPRT0_PRTOVRCURRCHNG),
-                                DWC2_HPRT0_PRTRST);
-
-	if (DwHc->ExitBootServiceEvent != NULL) {
-		gBS->CloseEvent (DwHc->ExitBootServiceEvent);
-	}
-
-	if (DwHc->ControllerNameTable != NULL) {
-		FreeUnicodeStringTable (DwHc->ControllerNameTable);
-	}
-
-	PciIo->Attributes (
-		PciIo,
-		EfiPciIoAttributeOperationSet,
-		DwHc->OriginalPciAttributes,
-		NULL
-		);
-
-	gBS->CloseProtocol (
-		Controller,
-		&gEfiPciIoProtocolGuid,
-		This->DriverBindingHandle,
-		Controller
-		);
-
-	FreePool(DwHc);
-
-	return EFI_SUCCESS;
+	DwCoreReset (DwHc);
 }
 
 /**
@@ -1370,15 +1088,104 @@ DwUsbHostEntryPoint (
   IN EFI_SYSTEM_TABLE     *SystemTable
   )
 {
+	EFI_STATUS                      Status;
+	DWUSB_OTGHC_DEV                 *DwHc;
+	UINT32				Pages;
 
-	return EfiLibInstallDriverBindingComponentName2 (
-			ImageHandle,
-			SystemTable,
-			&gDwUsbHostDriverBinding,
-			ImageHandle,
-			&gDwUsbHostComponentName,
-			&gDwUsbHostComponentName2
-			);
+	Status = EFI_SUCCESS;
 
+	DwHc = CreateDwUsbHc ();
+
+        if (DwHc == NULL) {
+                Status = EFI_OUT_OF_RESOURCES;
+                goto EXIT;
+        }
+
+        Status = gBS->InstallMultipleProtocolInterfaces (
+                        &DwHc->DeviceHandle,
+                        &gEfiUsb2HcProtocolGuid,	&DwHc->DwUsbOtgHc,
+			&gEfiDevicePathProtocolGuid,	&DwHc->DevicePath,
+			NULL
+                        );
+
+        if (EFI_ERROR (Status)) {
+                goto FREE_DWUSBHC;
+        }
+
+        Status = gBS->CreateEventEx (
+                        EVT_NOTIFY_SIGNAL,
+                        TPL_NOTIFY,
+                        DwUsbHcExitBootService,
+                        DwHc,
+                        &gEfiEventExitBootServicesGuid,
+                        &DwHc->ExitBootServiceEvent
+                        );
+
+        if (EFI_ERROR (Status)) {
+                goto UNINSTALL_PROTOCOL;
+        }
+
+	return Status;
+
+UNINSTALL_PROTOCOL:
+	gBS->UninstallMultipleProtocolInterfaces (
+		&DwHc->DeviceHandle,
+		&gEfiUsb2HcProtocolGuid,	&DwHc->DwUsbOtgHc,
+		&gEfiDevicePathProtocolGuid,	&DwHc->DevicePath,
+		NULL
+		);
+FREE_DWUSBHC:
+        Pages = EFI_SIZE_TO_PAGES (DWC2_STATUS_BUF_SIZE);
+	UncachedFreePages (DwHc->StatusBuffer, Pages);
+        Pages = EFI_SIZE_TO_PAGES (DWC2_DATA_BUF_SIZE);
+	UncachedFreePages (DwHc->AlignedBuffer, Pages);
+	gBS->FreePool (DwHc);
+EXIT:
+	return Status;
+}
+
+EFI_STATUS
+EFIAPI
+DwUsbHostExitPoint (
+  IN EFI_HANDLE	ImageHandle
+  )
+{
+        EFI_STATUS              Status;
+        EFI_USB2_HC_PROTOCOL    *DwUsbHc;
+        DWUSB_OTGHC_DEV         *DwHc;
+	UINT32			Pages;
+
+	Status = EFI_SUCCESS;
+
+        Status = gBS->LocateProtocol (&gEfiUsb2HcProtocolGuid, NULL, (VOID **) &DwUsbHc);
+
+        if (EFI_ERROR (Status)) {
+                return Status;
+        }
+
+        DwHc  = DWHC_FROM_THIS(DwUsbHc);
+
+	if (DwHc->ExitBootServiceEvent != NULL) {
+		gBS->CloseEvent (DwHc->ExitBootServiceEvent);
+	}
+
+        gBS->UninstallMultipleProtocolInterfaces (
+                &DwHc->DeviceHandle,
+                &gEfiUsb2HcProtocolGuid,        &DwHc->DwUsbOtgHc,
+                &gEfiDevicePathProtocolGuid,    &DwHc->DevicePath,
+                NULL
+                );
+
+        if (EFI_ERROR (Status)) {
+                return Status;
+        }
+
+        Pages = EFI_SIZE_TO_PAGES (DWC2_STATUS_BUF_SIZE);
+        UncachedFreePages (DwHc->StatusBuffer, Pages);
+        Pages = EFI_SIZE_TO_PAGES (DWC2_DATA_BUF_SIZE);
+        UncachedFreePages (DwHc->AlignedBuffer, Pages);
+	FreePool (DwHc);
+
+	return Status;
 }
 

@@ -428,7 +428,6 @@
   #
   # USB Host Support
   #
-  HisiPkg/HiKeyPkg/Drivers/PciEmulation/PciEmulation.inf
   HisiPkg/HiKeyPkg/Drivers/DwUsbHostDxe/DwUsbHostDxe.inf
   MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
   MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf

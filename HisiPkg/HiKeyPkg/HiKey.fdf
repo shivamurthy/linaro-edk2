@@ -135,7 +135,6 @@ READ_LOCK_STATUS   = TRUE
   #
   # USB Host Support
   #
-  INF HisiPkg/HiKeyPkg/Drivers/PciEmulation/PciEmulation.inf
   INF HisiPkg/HiKeyPkg/Drivers/DwUsbHostDxe/DwUsbHostDxe.inf
   INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
   INF MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf

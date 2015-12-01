@@ -51,6 +51,7 @@ EFI_PCI_IO_DEVICE_PATH PciIoDevicePathTemplate =
   { END_DEVICE_PATH_TYPE, END_ENTIRE_DEVICE_PATH_SUBTYPE, { sizeof (EFI_DEVICE_PATH_PROTOCOL), 0} }
 };
 
+#if 0
 STATIC
 VOID
 ConfigureUSBHost (
@@ -96,6 +97,7 @@ ConfigureUSBHost (
 
 	MicroSecondDelay (5000);
 }
+#endif
 
 EFI_STATUS
 PciIoPollMem (
@@ -557,7 +559,7 @@ PciEmulationEntryPoint (
   //UINTN                   Count;
 
   //Configure USB host
-  ConfigureUSBHost();
+  //ConfigureUSBHost();
 
   // Create a private structure
   Private = AllocatePool(sizeof(EFI_PCI_IO_PRIVATE_DATA));

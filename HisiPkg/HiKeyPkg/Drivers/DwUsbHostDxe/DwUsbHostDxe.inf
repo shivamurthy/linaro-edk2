@@ -19,10 +19,16 @@
   MODULE_TYPE                    = UEFI_DRIVER
   VERSION_STRING                 = 1.0
   ENTRY_POINT                    = DwUsbHostEntryPoint
+  UNLOAD_IMAGE			 = DwUsbHostExitPoint
 
 [Sources.common]
-  ComponentName.c
   DwUsbHostDxe.c
+
+[Packages]
+  ArmPkg/ArmPkg.dec
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
 
 [LibraryClasses]
   MemoryAllocationLib
@@ -43,13 +49,6 @@
 [Protocols]
   gEfiDriverBindingProtocolGuid
   gEfiUsb2HcProtocolGuid
-  gEfiPciIoProtocolGuid
-
-[Packages]
-  ArmPkg/ArmPkg.dec
-  MdePkg/MdePkg.dec
-  MdeModulePkg/MdeModulePkg.dec
-  EmbeddedPkg/EmbeddedPkg.dec
 
 [Pcd]
   gEmbeddedTokenSpaceGuid.PcdDwUsbBaseAddress
