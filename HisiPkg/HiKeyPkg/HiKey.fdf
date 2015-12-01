@@ -127,7 +127,18 @@ READ_LOCK_STATUS   = TRUE
   INF HisiPkg/HiKeyPkg/Drivers/DwSdDxe/DwSdDxe.inf
 
   #
-  # USB
+  # USB Host Support
+  #
+  INF HisiPkg/HiKeyPkg/Drivers/DwUsbHostDxe/DwUsbHostDxe.inf
+  INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+
+  #
+  # USB Mass Storage Support
+  #
+  INF MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
+
+  #
+  # USB Peripheral Support
   #
   INF EmbeddedPkg/Drivers/DwUsbDxe/DwUsbDxe.inf
   INF EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
