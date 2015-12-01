@@ -298,11 +298,22 @@
 #define AN_10_HDX                       0x0020  ///<  1 = 10BASE-T support
 #define AN_CSMA_CD                      0x0001  ///<  1 = IEEE 802.3 CSMA/CD support
 
-
+/* asix_flags defines */
+#define FLAG_NONE                       0
+#define FLAG_TYPE_AX88172       (1U << 0)
+#define FLAG_TYPE_AX88772       (1U << 1)
+#define FLAG_TYPE_AX88772B      (1U << 2)
+#define FLAG_EEPROM_MAC         (1U << 3) /* initial mac address in eeprom */
 
 //------------------------------------------------------------------------------
 //  Data Types
 //------------------------------------------------------------------------------
+
+struct ASIX_DONGLE {
+	UINT16	VendorId;
+	UINT16	ProductId;
+	INT32	Flags;
+};
 
 /**
   Ethernet header layout
