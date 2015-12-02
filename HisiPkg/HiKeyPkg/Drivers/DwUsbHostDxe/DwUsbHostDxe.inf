@@ -42,6 +42,7 @@
   PcdLib
   ReportStatusCodeLib
   TimerLib
+  IoLib
 
 [Guids]
   gEfiEventExitBootServicesGuid
