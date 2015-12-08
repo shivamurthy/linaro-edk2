@@ -141,7 +141,12 @@ READ_LOCK_STATUS   = TRUE
   # USB Peripheral Support
   #
   INF EmbeddedPkg/Drivers/DwUsbDxe/DwUsbDxe.inf
-  INF EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
+
+  #
+  # Fastboot Support
+  #
+  #INF EmbeddedPkg/Drivers/AndroidFastbootTransportUsbDxe/FastbootTransportUsbDxe.inf
+  INF EmbeddedPkg/Drivers/AndroidFastbootTransportTcpDxe/FastbootTransportTcpDxe.inf
 
   #
   # FASTBOOT_PLATFORM_PROTOCOL
